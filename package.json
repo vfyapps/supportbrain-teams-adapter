@@ -1,0 +1,12 @@
+{
+    "name": "supportbrain-teams-adapter",
+    "version": "1.0.0",
+    "main": "server.js",
+    "type": "commonjs",
+    "dependencies": {
+      "botbuilder": "^4.23.1",
+      "restify": "^11.1.0",
+      "node-fetch": "^3.3.2"
+    }
+  }
+  
