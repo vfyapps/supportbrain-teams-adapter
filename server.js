@@ -1,9 +1,13 @@
 const restify = require("restify");
-const { BotFrameworkAdapter } = require("botbuilder");
+const {
+  CloudAdapter,
+  ConfigurationServiceClientCredentialFactory,
+  createBotFrameworkAuthenticationFromConfiguration,
+} = require("botbuilder");
 
-// --- DEBUG BLOCK (safe logging: no secrets printed) ---
 const crypto = require("crypto");
 
+// ===== DEBUG =====
 function secretFingerprint(s) {
   if (!s) return "none";
   return crypto.createHash("sha256").update(s).digest("hex").slice(0, 8);
@@ -18,20 +22,23 @@ if (process.env.MICROSOFT_APP_ID) {
 
 if (process.env.MICROSOFT_APP_PASSWORD) {
   console.log("MICROSOFT_APP_PASSWORD length:", process.env.MICROSOFT_APP_PASSWORD.length);
-  console.log(
-    "MICROSOFT_APP_PASSWORD sha256 fp:",
-    secretFingerprint(process.env.MICROSOFT_APP_PASSWORD)
-  );
+  console.log("MICROSOFT_APP_PASSWORD sha256 fp:", secretFingerprint(process.env.MICROSOFT_APP_PASSWORD));
 }
 
 console.log("NODE_ENV:", process.env.NODE_ENV);
-// --- END DEBUG BLOCK ---
+// ===================
 
-
-const adapter = new BotFrameworkAdapter({
-  appId: process.env.MICROSOFT_APP_ID,
-  appPassword: process.env.MICROSOFT_APP_PASSWORD,
+// CloudAdapter setup (modern auth)
+const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
+  MicrosoftAppId: process.env.MICROSOFT_APP_ID,
+  MicrosoftAppPassword: process.env.MICROSOFT_APP_PASSWORD,
+  MicrosoftAppType: "MultiTenant",
 });
+
+const botFrameworkAuthentication =
+  createBotFrameworkAuthenticationFromConfiguration(null, credentialsFactory);
+
+const adapter = new CloudAdapter(botFrameworkAuthentication);
 
 adapter.onTurnError = async (context, error) => {
   console.error("Bot error:", error);
@@ -65,21 +72,15 @@ server.get("/health", async (req, res) => {
 });
 
 server.post("/api/messages", async (req, res) => {
-  try {
-    await adapter.processActivity(req, res, async (context) => {
-      if (context.activity.type !== "message") return;
+  await adapter.process(req, res, async (context) => {
+    if (context.activity.type !== "message") return;
 
-      const text = (context.activity.text || "").trim();
-      if (!text) return;
+    const text = (context.activity.text || "").trim();
+    if (!text) return;
 
-      const answer = await askSupportBrain(text);
-      await context.sendActivity(answer);
-    });
-  } catch (err) {
-    console.error("processActivity error:", err);
-    // Restify expects a response; adapter usually handles it, but just in case:
-    res.send(500, { error: "Bot processing failed" });
-  }
+    const answer = await askSupportBrain(text);
+    await context.sendActivity(answer);
+  });
 });
 
 const port = process.env.PORT || 3978;
