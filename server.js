@@ -1,29 +1,32 @@
 const restify = require("restify");
 const { BotFrameworkAdapter } = require("botbuilder");
 
-// --- STEP 1 DEBUG (safe logging: no secrets printed) ---
+// --- DEBUG BLOCK (safe logging: no secrets printed) ---
+const crypto = require("crypto");
+
+function secretFingerprint(s) {
+  if (!s) return "none";
+  return crypto.createHash("sha256").update(s).digest("hex").slice(0, 8);
+}
+
 console.log("ENV MICROSOFT_APP_ID present:", !!process.env.MICROSOFT_APP_ID);
-console.log(
-  "ENV MICROSOFT_APP_PASSWORD present:",
-  !!process.env.MICROSOFT_APP_PASSWORD
-);
+console.log("ENV MICROSOFT_APP_PASSWORD present:", !!process.env.MICROSOFT_APP_PASSWORD);
 
 if (process.env.MICROSOFT_APP_ID) {
-  console.log(
-    "MICROSOFT_APP_ID prefix:",
-    process.env.MICROSOFT_APP_ID.slice(0, 6)
-  );
+  console.log("MICROSOFT_APP_ID prefix:", process.env.MICROSOFT_APP_ID.slice(0, 6));
 }
 
 if (process.env.MICROSOFT_APP_PASSWORD) {
+  console.log("MICROSOFT_APP_PASSWORD length:", process.env.MICROSOFT_APP_PASSWORD.length);
   console.log(
-    "MICROSOFT_APP_PASSWORD length:",
-    process.env.MICROSOFT_APP_PASSWORD.length
+    "MICROSOFT_APP_PASSWORD sha256 fp:",
+    secretFingerprint(process.env.MICROSOFT_APP_PASSWORD)
   );
 }
 
 console.log("NODE_ENV:", process.env.NODE_ENV);
-// --- END STEP 1 DEBUG ---
+// --- END DEBUG BLOCK ---
+
 
 const adapter = new BotFrameworkAdapter({
   appId: process.env.MICROSOFT_APP_ID,
