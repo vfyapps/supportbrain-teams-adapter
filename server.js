@@ -7,7 +7,7 @@ const {
 
 const crypto = require("crypto");
 
-// ===== DEBUG =====
+// ================= DEBUG =================
 function secretFingerprint(s) {
   if (!s) return "none";
   return crypto.createHash("sha256").update(s).digest("hex").slice(0, 8);
@@ -22,13 +22,52 @@ if (process.env.MICROSOFT_APP_ID) {
 
 if (process.env.MICROSOFT_APP_PASSWORD) {
   console.log("MICROSOFT_APP_PASSWORD length:", process.env.MICROSOFT_APP_PASSWORD.length);
-  console.log("MICROSOFT_APP_PASSWORD sha256 fp:", secretFingerprint(process.env.MICROSOFT_APP_PASSWORD));
+  console.log(
+    "MICROSOFT_APP_PASSWORD sha256 fp:",
+    secretFingerprint(process.env.MICROSOFT_APP_PASSWORD)
+  );
 }
 
 console.log("NODE_ENV:", process.env.NODE_ENV);
-// ===================
+// =========================================
 
-// CloudAdapter setup (modern auth)
+// ================= TOKEN SELF-TEST =================
+async function testBotFrameworkToken() {
+  try {
+    const clientId = process.env.MICROSOFT_APP_ID;
+    const clientSecret = process.env.MICROSOFT_APP_PASSWORD;
+
+    const url =
+      "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token";
+
+    const body = new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: "https://api.botframework.com/.default",
+    });
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error("BOTFRAMEWORK TOKEN TEST FAILED:", res.status, text);
+      return;
+    }
+
+    console.log("BOTFRAMEWORK TOKEN TEST OK (status 200)");
+  } catch (e) {
+    console.error("BOTFRAMEWORK TOKEN TEST ERROR:", e);
+  }
+}
+// ===================================================
+
+// ================= CLOUD ADAPTER ===================
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
   MicrosoftAppId: process.env.MICROSOFT_APP_ID,
   MicrosoftAppPassword: process.env.MICROSOFT_APP_PASSWORD,
@@ -46,6 +85,7 @@ adapter.onTurnError = async (context, error) => {
     await context.sendActivity("Er ging iets mis. Probeer het nog eens.");
   } catch {}
 };
+// ===================================================
 
 async function askSupportBrain(question) {
   const base = (process.env.SUPPORTBRAIN_WORKER_URL || "").replace(/\/+$/, "");
@@ -84,4 +124,8 @@ server.post("/api/messages", async (req, res) => {
 });
 
 const port = process.env.PORT || 3978;
-server.listen(port, () => console.log(`Listening on ${port}`));
+
+server.listen(port, () => {
+  console.log(`Listening on ${port}`);
+  testBotFrameworkToken(); // Run token test at startup
+});
